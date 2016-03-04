@@ -1,0 +1,6 @@
+[package]
+name = "directory_filter"
+version = "0.1.0"
+authors = ["Seb Glazebrook <sebastian.glazebrook@redbubble.com>"]
+
+[dependencies]
