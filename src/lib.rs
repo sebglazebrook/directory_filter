@@ -67,7 +67,7 @@ impl<'a> SimpleFilter<'a> {
 }
 
 #[test]
-fn it_works() {
+fn simple_filtering_example() {
     let mut scanner_builder = ScannerBuilder::new();
     let scanner_builder = scanner_builder.start_from_path("test/fixture_dir/");
     let directory = scanner_builder.build().scan();
@@ -77,11 +77,6 @@ fn it_works() {
 
     assert_eq!(filtered_directory.len(), 10);
 }
-
-//// step 1 - simple one time, static data filtering with the output returned
-
-//let filter = OneTimeFilter::new(&result_set, &filter_string);
-//let results = filter.start();
 
 //// step 2 - dynamic data that subscribes and publishes events
 
