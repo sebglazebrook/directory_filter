@@ -4,3 +4,7 @@ version = "0.1.0"
 authors = ["Seb Glazebrook <sebastian.glazebrook@redbubble.com>"]
 
 [dependencies]
+regex = "*"
+
+[dependencies.directory_scanner]
+git = "http://github.com/sebglazebrook/directory_scanner.git"
