@@ -69,7 +69,8 @@ impl<'a> SimpleFilter<'a> {
 #[test]
 fn simple_filtering_example() {
     let mut scanner_builder = ScannerBuilder::new();
-    let scanner_builder = scanner_builder.start_from_path("test/fixture_dir/");
+    scanner_builder = scanner_builder.start_from_path("test/fixture_dir/");
+    scanner_builder = scanner_builder.max_threads(1);
     let directory = scanner_builder.build().scan();
 
     let filter = SimpleFilter::new(&directory, "fixture_dir");
