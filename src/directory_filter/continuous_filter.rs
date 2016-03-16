@@ -1,4 +1,3 @@
-use std::thread;
 use regex::Regex;
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{Sender, Receiver};
@@ -79,10 +78,16 @@ impl<'a> ContinuousFilter<'a> {
             // initial scan
             locked_filter.scan();
 
-
-            self.finished_receiver.recv().unwrap();
-            self.done.store(true, Ordering::Relaxed);
+            self.wait_until_finished();
         });
+    }
+
+
+    //------------ private ----------//
+
+    fn wait_until_finished(&self) {
+        self.finished_receiver.recv().unwrap();
+        self.done.store(true, Ordering::Relaxed);
     }
 
 }
@@ -120,7 +125,7 @@ impl<'a> Filter<'a> {
         self.results.directory = self.directory;
         self.results.matches = self.find_matches(self.directory);
         println!("Sending matches: {:?}", self.results.matches.len());
-        self.filter_match_transmitter.send(self.results.clone()); // TODO only send if there is a difference? or only send the delta?
+        let _ = self.filter_match_transmitter.send(self.results.clone()); // TODO only send if there is a difference? or only send the delta?
     }
 
     // -------- private ----------- //

@@ -4,8 +4,6 @@ extern crate regex;
 extern crate crossbeam;
 
 use directory_scanner::ScannerBuilder;
-use std::sync::mpsc::{Sender, Receiver};
-use std::thread;
 
 mod directory_filter;
 use directory_filter::{SimpleFilter, ContinuousFilter};
@@ -53,7 +51,7 @@ fn advanced_filtering_example() {
         trans_filter_change.send("fixture_dir".to_string()).unwrap();
 
         assert_eq!(rec_filter_match.recv().unwrap().len(), 10); // TODO how can I make sure this doesn't hang the thread
-        finished_transmitter.send(true);
+        let _ = finished_transmitter.send(true);
     });
 
 }
