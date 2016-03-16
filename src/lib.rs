@@ -45,12 +45,15 @@ fn advanced_filtering_example() {
 
     crossbeam::scope(|scope| {
 
+        let finished_transmitter = filter.finished_transmitter.clone();
         scope.spawn(move || {
             filter.start();
         });
 
         trans_filter_change.send("fixture_dir".to_string()).unwrap();
-        assert_eq!(rec_filter_match.recv().unwrap().len(), 10);
+
+        assert_eq!(rec_filter_match.recv().unwrap().len(), 10); // TODO how can I make sure this doesn't hang the thread
+        finished_transmitter.send(true);
     });
 
 }

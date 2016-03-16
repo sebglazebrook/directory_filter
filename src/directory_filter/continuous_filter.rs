@@ -2,14 +2,20 @@ use std::thread;
 use regex::Regex;
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{Sender, Receiver};
-use directory_scanner::Directory;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::channel;
+
+use directory_scanner::Directory;
 use crossbeam;
 
 use directory_filter::FilteredDirectory;
 
 pub struct ContinuousFilter<'a> {
     actual_filter: Arc<Mutex<Filter<'a>>>,
+    done: Arc<AtomicBool>,
+    pub finished_transmitter: Sender<bool>,
+    finished_receiver: Receiver<bool>,
 }
 
 impl<'a> ContinuousFilter<'a> {
@@ -28,7 +34,13 @@ impl<'a> ContinuousFilter<'a> {
           )
       );
 
-      ContinuousFilter { actual_filter: actual_filter }
+      let (tx, rx) = channel();
+      ContinuousFilter {
+          actual_filter: actual_filter,
+          done: Arc::new(AtomicBool::new(false)),
+          finished_transmitter: tx,
+          finished_receiver: rx,
+      }
     }
 
     pub fn start(&mut self) {
@@ -39,27 +51,37 @@ impl<'a> ContinuousFilter<'a> {
 
             // listen for filter change events and then kick off scan
             let filter_change_receiver = locked_filter.filter_change_receiver.clone();
+            let done = self.done.clone();
             scope.spawn(move || {
-                let filter_string = filter_change_receiver.lock().unwrap().recv().unwrap(); // TODO handle this better
-                println!("new filter string: {}", filter_string);
-                println!("Rescanning!");
-                local_filter.lock().unwrap().scan();
-                // TODO loop
+                while !done.load(Ordering::Relaxed) {
+                    println!("waiting for filter changes");
+                    let filter_string = filter_change_receiver.lock().unwrap().recv().unwrap(); // TODO handle this better
+                    println!("new filter string: {}", filter_string);
+                    println!("Rescanning!");
+                    local_filter.lock().unwrap().scan();
+                }
             });
 
             // listen for new directory item events and then kick off scan
             let new_directory_item_receiver = locked_filter.new_directory_item_receiver.clone();
             let local_filter = self.actual_filter.clone();
+            let done = self.done.clone();
             scope.spawn(move || {
-                let new_directory_item = new_directory_item_receiver.lock().unwrap().recv().unwrap(); // TODO handle this better
-                println!("new directory item: {:?}", new_directory_item);
-                println!("Rescanning!");
-                local_filter.lock().unwrap().scan();
-                // TODO loop
+                while !done.load(Ordering::Relaxed) {
+                    println!("waiting for directory changes");
+                    let new_directory_item = new_directory_item_receiver.lock().unwrap().recv().unwrap(); // TODO handle this better
+                    println!("new directory item: {:?}", new_directory_item);
+                    println!("Rescanning!");
+                    local_filter.lock().unwrap().scan();
+                }
             });
 
-            println!("SEB here");
-            // TODO listen for a finished event and force the above threads to die
+            // initial scan
+            locked_filter.scan();
+
+
+            self.finished_receiver.recv().unwrap();
+            self.done.store(true, Ordering::Relaxed);
         });
     }
 
@@ -97,6 +119,7 @@ impl<'a> Filter<'a> {
     pub fn scan(&mut self) {
         self.results.directory = self.directory;
         self.results.matches = self.find_matches(self.directory);
+        println!("Sending matches: {:?}", self.results.matches.len());
         self.filter_match_transmitter.send(self.results.clone()); // TODO only send if there is a difference? or only send the delta?
     }
 
