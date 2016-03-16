@@ -1,4 +1,3 @@
-#[allow(dead_code)] // TODO remove after testing
 extern crate directory_scanner;
 extern crate regex;
 extern crate crossbeam;
@@ -6,7 +5,7 @@ extern crate crossbeam;
 use directory_scanner::ScannerBuilder;
 
 mod directory_filter;
-use directory_filter::{SimpleFilter, ContinuousFilter};
+pub use directory_filter::{SimpleFilter, ContinuousFilter};
 
 // used in the tests
 use std::sync::mpsc::channel;

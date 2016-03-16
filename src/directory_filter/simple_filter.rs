@@ -1,5 +1,4 @@
 use regex::Regex;
-use std::path::PathBuf;
 use directory_scanner::Directory;
 
 use directory_filter::FilteredDirectory;
