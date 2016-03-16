@@ -1,7 +1,6 @@
 use regex::Regex;
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{Sender, Receiver};
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::channel;
 
@@ -9,6 +8,7 @@ use directory_scanner::Directory;
 use crossbeam;
 
 use directory_filter::FilteredDirectory;
+use directory_filter::matchers::*;
 
 pub struct ContinuousFilter<'a> {
     actual_filter: Arc<Mutex<Filter<'a>>>,
@@ -123,36 +123,9 @@ impl<'a> Filter<'a> {
 
     pub fn scan(&mut self) {
         self.results.directory = self.directory;
-        self.results.matches = self.find_matches(self.directory);
+        self.results.matches = find_matches(self.directory, self.regex.clone());
         println!("Sending matches: {:?}", self.results.matches.len());
         let _ = self.filter_match_transmitter.send(self.results.clone()); // TODO only send if there is a difference? or only send the delta?
-    }
-
-    // -------- private ----------- //
-
-    // TODO remove this duplication
-    fn find_matches(&self, directory: &Directory) -> Vec<String> {
-        let mut matches = vec![];
-        if self.is_match(&directory.path) {
-            matches.extend(self.directory.contents());
-        } else {
-            for file in self.directory.files.clone() {
-                if self.is_match(&file.path()) {
-                    matches.push(file.as_string());
-                }
-            }
-            for directory in self.directory.sub_directories.clone() {
-                // TODO use a thread pool or something
-                // for directories to make things quicker
-                matches.extend(self.find_matches(&directory))
-            }
-        }
-        matches
-    }
-
-    // TODO remove this duplication
-    fn is_match(&self, path: &PathBuf) -> bool {
-        self.regex.is_match(path.to_str().unwrap())
     }
 
 }
