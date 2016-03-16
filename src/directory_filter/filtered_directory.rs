@@ -1,5 +1,6 @@
 use directory_scanner::Directory;
 
+#[derive(Clone)]
 pub struct FilteredDirectory<'b> {
     pub directory: &'b Directory,
     pub matches: Vec<String>, // TODO this should be a collection of references/pointers to paths in the directory

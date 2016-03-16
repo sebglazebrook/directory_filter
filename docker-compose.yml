@@ -6,6 +6,8 @@ data:
   command: ["true"]
 rust:
   image: sebglazebrook/rust-nightly
+  #environment:
+    #- RUST_BACKTRACE=1
   volumes:
     - .:/code
   volumes_from:
