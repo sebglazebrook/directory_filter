@@ -1,70 +1,16 @@
+#[allow(dead_code)] // TODO remove after testing
 extern crate directory_scanner;
 extern crate regex;
 
-use directory_scanner::{ScannerBuilder, Directory};
-use std::path::PathBuf;
-use regex::Regex;
+use directory_scanner::ScannerBuilder;
+use std::sync::mpsc::{Sender, Receiver};
 
-struct FilteredDirectory<'b> {
-    directory: &'b Directory,
-    matches: Vec<String>, // TODO this should be a collection of references/pointers to paths in the directory
-}
+mod directory_filter;
+use directory_filter::{SimpleFilter, ContinuousFilter};
 
-impl<'b> FilteredDirectory<'b> {
+// used in the tests
+use std::sync::mpsc::channel;
 
-    pub fn len(&self) -> usize {
-        self.matches.len()
-    }
-
-}
-
-struct SimpleFilter<'a> {
-    directory: &'a Directory,
-    regex: Regex,
-}
-
-impl<'a> SimpleFilter<'a> {
-
-    pub fn new(directory: &'a Directory, filter_string: &'a str) -> Self {
-        let regex = Regex::new(filter_string).unwrap();
-        SimpleFilter {
-            directory: directory,
-            regex: regex,
-        }
-    }
-
-    pub fn execute(&self) -> FilteredDirectory {
-        FilteredDirectory {
-           matches: self.find_matches(self.directory),
-           directory: self.directory,
-        }
-    }
-
-    //----------- private ---------//
-
-    // TODO make this faster use a thread pool or something
-    fn find_matches(&self, directory: &Directory) -> Vec<String> {
-        let mut matches = vec![];
-        if self.is_match(&directory.path) {
-            matches.extend(self.directory.contents());
-        } else {
-            for file in self.directory.files.clone() {
-                if self.is_match(&file.path()) {
-                    matches.push(file.as_string());
-                }
-            }
-            for directory in self.directory.sub_directories.clone() {
-                matches.extend(self.find_matches(&directory))
-            }
-        }
-        matches
-    }
-
-    fn is_match(&self, path: &PathBuf) -> bool {
-        self.regex.is_match(path.to_str().unwrap())
-    }
-
-}
 
 #[test]
 fn simple_filtering_example() {
@@ -79,16 +25,30 @@ fn simple_filtering_example() {
     assert_eq!(filtered_directory.len(), 10);
 }
 
-//// step 2 - dynamic data that subscribes and publishes events
+#[test]
+fn advanced_filtering_example() {
+    let(trans_new_directory_item, rec_new_directory_item) = channel();
 
-//let filter = ContinuousFilter::new(event_bus) // subscribes to new directory item event
-                                              //// subscribes to filter string change events
-                                              //// publishes events when a new directory item matches
-                                              //// the filter string
+    let mut scanner_builder = ScannerBuilder::new();
+    scanner_builder = scanner_builder.start_from_path("test/fixture_dir/");
+    scanner_builder = scanner_builder.max_threads(1);
+    scanner_builder = scanner_builder.update_subscriber(trans_new_directory_item);
+    let directory = scanner_builder.build().scan();
 
-//directory_filter.start();
+    let(trans_filter_change, rec_filter_change) = channel();
+    let(trans_filter_match, rec_filter_match) = channel();
 
-//// it updates the listeners as new results match the filter string
-//// it resets when the filter string is updated
+    let mut filter = ContinuousFilter::new(&directory, rec_filter_change, rec_new_directory_item, trans_filter_match);
 
-//directory_filter.stop();
+    filter.start();
+
+    trans_filter_change.send("fixture_dir".to_string()).unwrap();
+
+    // listening for rescans and initiate rescan
+    // need to listen for both new filter strings and directory changes
+    // how will I stop the rescans?
+
+    assert_eq!(rec_filter_match.recv().unwrap().len(), 10);
+
+    filter.stop();
+}
