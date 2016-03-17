@@ -71,7 +71,6 @@ impl<'a> ContinuousFilter<'a> {
             scope.spawn(move || {
                 while !done.load(Ordering::Relaxed) {
                     let new_directory_item = new_directory_item_receiver.lock().unwrap().recv().unwrap(); // TODO handle this better
-                    println!("Fond more directory stuff: {}", new_directory_item.len());
                     let mut locked_filter = local_filter.lock().unwrap();
                     locked_filter.scan();
                 }
@@ -129,7 +128,6 @@ impl<'a> Filter<'a> {
     pub fn scan(&mut self) {
         self.results.directory = self.directory;
         self.results.matches = find_matches(self.directory, self.regex.clone());
-        println!("Sending matches: {:?}", self.results.matches.len());
         let _ = self.filter_match_transmitter.send(self.results.clone()); // TODO only send if there is a difference? or only send the delta?
     }
 

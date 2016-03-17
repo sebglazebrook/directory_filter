@@ -73,6 +73,5 @@ fn advanced_filtering_example() {
 
 fn time_up(start_time: Tm, duration: i64) -> bool {
     let difference = time::now().to_timespec().sec - start_time.to_timespec().sec;
-    println!("Difference: {}", difference);
     difference > duration
 }
