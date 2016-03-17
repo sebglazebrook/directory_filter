@@ -45,38 +45,43 @@ impl<'a> ContinuousFilter<'a> {
     pub fn start(&mut self) {
 
         crossbeam::scope(|scope| {
-            let mut locked_filter = self.actual_filter.lock().unwrap();
-            let local_filter = self.actual_filter.clone();
+            let filter_change_receiver;
+            let new_directory_item_receiver ;
+            {
+                let mut locked_filter = self.actual_filter.lock().unwrap();
+                filter_change_receiver = locked_filter.filter_change_receiver.clone();
+                new_directory_item_receiver = locked_filter.new_directory_item_receiver.clone();
+            }
 
             // listen for filter change events and then kick off scan
-            let filter_change_receiver = locked_filter.filter_change_receiver.clone();
+            let local_filter = self.actual_filter.clone();
             let done = self.done.clone();
             scope.spawn(move || {
                 while !done.load(Ordering::Relaxed) {
-                    println!("waiting for filter changes");
                     let filter_string = filter_change_receiver.lock().unwrap().recv().unwrap(); // TODO handle this better
-                    println!("new filter string: {}", filter_string);
-                    println!("Rescanning!");
-                    local_filter.lock().unwrap().scan();
+                    let mut locked_filter = local_filter.lock().unwrap();
+                    locked_filter.regex = Regex::new(&filter_string).unwrap();
+                    locked_filter.scan();
                 }
             });
 
             // listen for new directory item events and then kick off scan
-            let new_directory_item_receiver = locked_filter.new_directory_item_receiver.clone();
             let local_filter = self.actual_filter.clone();
             let done = self.done.clone();
             scope.spawn(move || {
                 while !done.load(Ordering::Relaxed) {
-                    println!("waiting for directory changes");
                     let new_directory_item = new_directory_item_receiver.lock().unwrap().recv().unwrap(); // TODO handle this better
-                    println!("new directory item: {:?}", new_directory_item);
-                    println!("Rescanning!");
-                    local_filter.lock().unwrap().scan();
+                    println!("Fond more directory stuff: {}", new_directory_item.len());
+                    let mut locked_filter = local_filter.lock().unwrap();
+                    locked_filter.scan();
                 }
             });
 
-            // initial scan
-            locked_filter.scan();
+            {
+                let mut locked_filter = self.actual_filter.lock().unwrap();
+                // initial scan
+                locked_filter.scan();
+            }
 
             self.wait_until_finished();
         });

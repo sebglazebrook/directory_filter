@@ -1,8 +1,10 @@
 extern crate directory_scanner;
 extern crate regex;
+extern crate time;
 extern crate crossbeam;
 
 use directory_scanner::ScannerBuilder;
+use time::Tm;
 
 mod directory_filter;
 pub use directory_filter::{SimpleFilter, ContinuousFilter};
@@ -18,10 +20,10 @@ fn simple_filtering_example() {
     scanner_builder = scanner_builder.max_threads(1);
     let directory = scanner_builder.build().scan();
 
-    let filter = SimpleFilter::new(&directory, "fixture_dir");
+    let filter = SimpleFilter::new(&directory, "file-1");
     let filtered_directory = filter.execute();
 
-    assert_eq!(filtered_directory.len(), 10);
+    assert_eq!(filtered_directory.len(), 2);
 }
 
 #[test]
@@ -47,10 +49,30 @@ fn advanced_filtering_example() {
             filter.start();
         });
 
-        trans_filter_change.send("fixture_dir".to_string()).unwrap();
+        trans_filter_change.send("file-1".to_string()).unwrap();
 
-        assert_eq!(rec_filter_match.recv().unwrap().len(), 10); // TODO how can I make sure this doesn't hang the thread
+        let start_time = time::now();
+        let duration = 5;
+        let mut done = false;
+        while !done {
+            let found = rec_filter_match.recv().unwrap().len();
+            if found == 2 {
+                assert_eq!(found, 2);
+                done = true;
+            } else {
+                if time_up(start_time, duration) {
+                    assert_eq!(found, 2);
+                    done = true;
+                }
+            }
+        }
         let _ = finished_transmitter.send(true);
     });
 
+}
+
+fn time_up(start_time: Tm, duration: i64) -> bool {
+    let difference = time::now().to_timespec().sec - start_time.to_timespec().sec;
+    println!("Difference: {}", difference);
+    difference > duration
 }
