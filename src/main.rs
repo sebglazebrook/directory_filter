@@ -35,7 +35,7 @@ fn main() {
         let mut input = String::new();
         while !done {
             match io::stdin().read_line(&mut input) {
-                Ok(n) => {
+                Ok(_) => {
                     let last_line = input.lines().last().unwrap();
                     if input.lines().last().unwrap() == "exit" {
                         done = true;

@@ -48,7 +48,7 @@ impl<'a> ContinuousFilter<'a> {
             let filter_change_receiver;
             let new_directory_item_receiver ;
             {
-                let mut locked_filter = self.actual_filter.lock().unwrap();
+                let locked_filter = self.actual_filter.lock().unwrap();
                 filter_change_receiver = locked_filter.filter_change_receiver.clone();
                 new_directory_item_receiver = locked_filter.new_directory_item_receiver.clone();
             }
@@ -75,7 +75,7 @@ impl<'a> ContinuousFilter<'a> {
             scope.spawn(move || {
                 while !done.load(Ordering::Relaxed) {
                     match new_directory_item_receiver.lock().unwrap().recv() {
-                        Ok(new_directory_item) => {
+                        Ok(_) => {
                             let mut locked_filter = local_filter.lock().unwrap();
                             locked_filter.scan();
                         },
