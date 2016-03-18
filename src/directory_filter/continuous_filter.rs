@@ -135,8 +135,12 @@ impl<'a> Filter<'a> {
 
     pub fn scan(&mut self) {
         self.results.directory = self.directory;
-        self.results.matches = find_matches(self.directory, self.regex.clone());
-        let _ = self.filter_match_transmitter.send(self.results.clone()); // TODO only send if there is a difference? or only send the delta?
+        let new_matches = find_matches(self.directory, self.regex.clone());
+        if self.results.matches != new_matches {
+            self.results.matches = new_matches;
+            println!("sending matches : {}", self.results.matches.len());
+            let _ = self.filter_match_transmitter.send(self.results.clone()); // TODO only send if there is a difference? or only send the delta?
+        }
     }
 
 }
