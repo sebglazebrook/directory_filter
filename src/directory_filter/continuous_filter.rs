@@ -7,7 +7,7 @@ use std::sync::mpsc::channel;
 use directory_scanner::Directory;
 use crossbeam;
 
-use directory_filter::FilteredDirectory;
+use directory_filter::{FilteredDirectory, RegexBuilder};
 use directory_filter::matchers::*;
 
 pub struct ContinuousFilter<'a> {
@@ -61,7 +61,7 @@ impl<'a> ContinuousFilter<'a> {
                     match filter_change_receiver.lock().unwrap().recv() {
                         Ok(filter_string) => {
                             let mut locked_filter = local_filter.lock().unwrap();
-                            locked_filter.regex = Regex::new(&filter_string).unwrap();
+                            locked_filter.regex = RegexBuilder::new(filter_string).build();
                             locked_filter.scan();
                         },
                         Err(_) => {},
