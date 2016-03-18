@@ -58,10 +58,14 @@ impl<'a> ContinuousFilter<'a> {
             let done = self.done.clone();
             scope.spawn(move || {
                 while !done.load(Ordering::Relaxed) {
-                    let filter_string = filter_change_receiver.lock().unwrap().recv().unwrap(); // TODO handle this better
-                    let mut locked_filter = local_filter.lock().unwrap();
-                    locked_filter.regex = Regex::new(&filter_string).unwrap();
-                    locked_filter.scan();
+                    match filter_change_receiver.lock().unwrap().recv() {
+                        Ok(filter_string) => {
+                            let mut locked_filter = local_filter.lock().unwrap();
+                            locked_filter.regex = Regex::new(&filter_string).unwrap();
+                            locked_filter.scan();
+                        },
+                        Err(_) => {},
+                    }
                 }
             });
 
@@ -70,9 +74,13 @@ impl<'a> ContinuousFilter<'a> {
             let done = self.done.clone();
             scope.spawn(move || {
                 while !done.load(Ordering::Relaxed) {
-                    let new_directory_item = new_directory_item_receiver.lock().unwrap().recv().unwrap(); // TODO handle this better
-                    let mut locked_filter = local_filter.lock().unwrap();
-                    locked_filter.scan();
+                    match new_directory_item_receiver.lock().unwrap().recv() {
+                        Ok(new_directory_item) => {
+                            let mut locked_filter = local_filter.lock().unwrap();
+                            locked_filter.scan();
+                        },
+                        Err(_) => {}
+                    }
                 }
             });
 
