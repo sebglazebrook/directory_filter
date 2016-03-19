@@ -19,8 +19,8 @@ pub struct ContinuousFilter<'a> {
 
 impl<'a> ContinuousFilter<'a> {
 
-    pub fn new(directory: &'a Directory, filter_change_receiver: Receiver<String>,
-               new_directory_item_receiver: Receiver<Directory>, filter_match_transmitter: Sender<FilteredDirectory<'a>>) -> Self {
+    pub fn new(directory: &'a Directory, filter_change_receiver: Arc<Mutex<Receiver<String>>>,
+               new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>, filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory<'a>>>>) -> Self {
 
       let actual_filter = Arc::new(
           Mutex::new(
@@ -108,15 +108,15 @@ struct Filter<'a> {
     directory: &'a Directory,
     filter_change_receiver: Arc<Mutex<Receiver<String>>>,
     new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>,
-    filter_match_transmitter: Sender<FilteredDirectory<'a>>,
+    filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory<'a>>>>,
     results: FilteredDirectory<'a>,
     regex: Regex,
 }
 
 impl<'a> Filter<'a> {
 
-    pub fn new(directory: &'a Directory, filter_change_receiver: Receiver<String>,
-               new_directory_item_receiver: Receiver<Directory>, filter_match_transmitter: Sender<FilteredDirectory<'a>>) -> Self {
+    pub fn new(directory: &'a Directory, filter_change_receiver: Arc<Mutex<Receiver<String>>>,
+               new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>, filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory<'a>>>>) -> Self {
 
       let filtered_directory = FilteredDirectory {
            matches: vec![],
@@ -125,8 +125,8 @@ impl<'a> Filter<'a> {
 
       Filter {
           directory: directory,
-          filter_change_receiver: Arc::new(Mutex::new(filter_change_receiver)),
-          new_directory_item_receiver: Arc::new(Mutex::new(new_directory_item_receiver)),
+          filter_change_receiver: filter_change_receiver,
+          new_directory_item_receiver: new_directory_item_receiver,
           filter_match_transmitter: filter_match_transmitter,
           results: filtered_directory,
           regex: Regex::new("").unwrap(),
@@ -139,7 +139,7 @@ impl<'a> Filter<'a> {
         if self.results.matches != new_matches {
             self.results.matches = new_matches;
             println!("sending matches : {}", self.results.matches.len());
-            let _ = self.filter_match_transmitter.send(self.results.clone()); // TODO only send if there is a difference? or only send the delta?
+            let _ = self.filter_match_transmitter.lock().unwrap().send(self.results.clone()); // TODO only send if there is a difference? or only send the delta?
         }
     }
 

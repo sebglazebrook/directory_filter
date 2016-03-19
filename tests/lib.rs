@@ -7,6 +7,7 @@ extern crate crossbeam;
 use directory_scanner::ScannerBuilder;
 use time::Tm;
 use std::sync::mpsc::channel;
+use std::sync::{Arc, Mutex};
 use directory_filter::{SimpleFilter,ContinuousFilter};
 
 
@@ -37,7 +38,7 @@ fn advanced_filtering_example() {
     let(trans_filter_change, rec_filter_change) = channel();
     let(trans_filter_match, rec_filter_match) = channel();
 
-    let mut filter = ContinuousFilter::new(&directory, rec_filter_change, rec_new_directory_item, trans_filter_match);
+    let mut filter = ContinuousFilter::new(&directory, Arc::new(Mutex::new(rec_filter_change)), Arc::new(Mutex::new(rec_new_directory_item)), Arc::new(Mutex::new(trans_filter_match)));
 
     crossbeam::scope(|scope| {
 
