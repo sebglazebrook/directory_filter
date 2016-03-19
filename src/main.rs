@@ -14,7 +14,7 @@ fn main() {
     let mut scanner_builder = ScannerBuilder::new();
     scanner_builder = scanner_builder.start_from_path("./");
     scanner_builder = scanner_builder.max_threads(1);
-    scanner_builder = scanner_builder.update_subscriber(trans_new_directory_item);
+    scanner_builder = scanner_builder.update_subscriber(Arc::new(Mutex::new(trans_new_directory_item)));
     let directory = scanner_builder.build().scan();
 
     let(trans_filter_change, rec_filter_change) = channel();
