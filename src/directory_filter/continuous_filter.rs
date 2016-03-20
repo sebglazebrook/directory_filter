@@ -138,7 +138,6 @@ impl<'a> Filter<'a> {
         let new_matches = find_matches(self.directory, self.regex.clone());
         if self.results.matches != new_matches {
             self.results.matches = new_matches;
-            println!("sending matches : {}", self.results.matches.len());
             let _ = self.filter_match_transmitter.lock().unwrap().send(self.results.clone()); // TODO only send if there is a difference? or only send the delta?
         }
     }
