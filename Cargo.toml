@@ -10,4 +10,4 @@ time = "*"
 
 [dependencies.directory_scanner]
 git = "http://github.com/sebglazebrook/directory_scanner.git"
-rev = "ac09bfe"
+rev = "24bd923"
