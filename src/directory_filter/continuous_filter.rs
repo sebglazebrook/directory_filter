@@ -10,17 +10,17 @@ use crossbeam;
 use directory_filter::{FilteredDirectory, RegexBuilder};
 use directory_filter::matchers::*;
 
-pub struct ContinuousFilter<'a> {
-    actual_filter: Arc<Mutex<Filter<'a>>>,
+pub struct ContinuousFilter {
+    actual_filter: Arc<Mutex<Filter>>,
     done: Arc<AtomicBool>,
     pub finished_transmitter: Sender<bool>,
     finished_receiver: Receiver<bool>,
 }
 
-impl<'a> ContinuousFilter<'a> {
+impl ContinuousFilter {
 
-    pub fn new(directory: &'a Directory, filter_change_receiver: Arc<Mutex<Receiver<String>>>,
-               new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>, filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory<'a>>>>) -> Self {
+    pub fn new(directory: Arc<Mutex<Directory>>, filter_change_receiver: Arc<Mutex<Receiver<String>>>,
+               new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>, filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory>>>) -> Self {
 
       let actual_filter = Arc::new(
           Mutex::new(
@@ -75,8 +75,9 @@ impl<'a> ContinuousFilter<'a> {
             scope.spawn(move || {
                 while !done.load(Ordering::Relaxed) {
                     match new_directory_item_receiver.lock().unwrap().recv() {
-                        Ok(_) => {
+                        Ok(directory) => {
                             let mut locked_filter = local_filter.lock().unwrap();
+                            locked_filter.append(directory);
                             locked_filter.scan();
                         },
                         Err(_) => {}
@@ -104,27 +105,27 @@ impl<'a> ContinuousFilter<'a> {
 
 }
 
-struct Filter<'a> {
-    directory: &'a Directory,
+struct Filter {
+    directory: Arc<Mutex<Directory>>,
     filter_change_receiver: Arc<Mutex<Receiver<String>>>,
     new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>,
-    filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory<'a>>>>,
-    results: FilteredDirectory<'a>,
+    filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory>>>,
+    results: FilteredDirectory,
     regex: Regex,
 }
 
-impl<'a> Filter<'a> {
+impl Filter {
 
-    pub fn new(directory: &'a Directory, filter_change_receiver: Arc<Mutex<Receiver<String>>>,
-               new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>, filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory<'a>>>>) -> Self {
+    pub fn new(directory: Arc<Mutex<Directory>>, filter_change_receiver: Arc<Mutex<Receiver<String>>>,
+               new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>, filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory>>>) -> Self {
 
       let filtered_directory = FilteredDirectory {
            matches: vec![],
-           directory: directory,
+           directory: directory.clone(),
       };
 
       Filter {
-          directory: directory,
+          directory: directory.clone(),
           filter_change_receiver: filter_change_receiver,
           new_directory_item_receiver: new_directory_item_receiver,
           filter_match_transmitter: filter_match_transmitter,
@@ -133,12 +134,17 @@ impl<'a> Filter<'a> {
       }
     }
 
+    pub fn append(&mut self, directory: Directory) {
+        self.directory.lock().unwrap().extend(&directory)
+    }
+
     pub fn scan(&mut self) {
-        self.results.directory = self.directory;
-        let new_matches = find_matches(self.directory, self.regex.clone());
+        self.results.directory = self.directory.clone();
+        let new_matches = find_matches(&self.directory, self.regex.clone());
         if self.results.matches != new_matches {
             self.results.matches = new_matches;
             let _ = self.filter_match_transmitter.lock().unwrap().send(self.results.clone()); // TODO only send if there is a difference? or only send the delta?
+//            println!("have sent {:?}", self.directory);
         }
     }
 
