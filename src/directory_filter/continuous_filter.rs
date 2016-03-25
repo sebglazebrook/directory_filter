@@ -44,6 +44,7 @@ impl ContinuousFilter {
 
     pub fn start(&mut self) {
 
+        info!("filter scanning started");
         crossbeam::scope(|scope| {
             let filter_change_receiver;
             let new_directory_item_receiver ;
@@ -60,6 +61,7 @@ impl ContinuousFilter {
                 while !done.load(Ordering::Relaxed) {
                     match filter_change_receiver.lock().unwrap().recv() {
                         Ok(filter_string) => {
+                            info!("Found new filter string: {}", filter_string);
                             let mut locked_filter = local_filter.lock().unwrap();
                             locked_filter.regex = RegexBuilder::new(filter_string).build();
                             locked_filter.scan();
@@ -77,7 +79,6 @@ impl ContinuousFilter {
                     match new_directory_item_receiver.lock().unwrap().recv() {
                         Ok(directory) => {
                             let mut locked_filter = local_filter.lock().unwrap();
-                            locked_filter.append(directory);
                             locked_filter.scan();
                         },
                         Err(_) => {}
@@ -139,12 +140,14 @@ impl Filter {
     }
 
     pub fn scan(&mut self) {
+        info!("Filter is scanning through directory with");
         self.results.directory = self.directory.clone();
         let new_matches = find_matches(&self.directory, self.regex.clone());
+        info!("Filter found {} matches", new_matches.len());
         if self.results.matches != new_matches {
+            info!("Filter found matches to be different from previous emitting event");
             self.results.matches = new_matches;
             let _ = self.filter_match_transmitter.lock().unwrap().send(self.results.clone()); // TODO only send if there is a difference? or only send the delta?
-//            println!("have sent {:?}", self.directory);
         }
     }
 

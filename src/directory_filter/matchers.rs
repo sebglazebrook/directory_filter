@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 pub fn find_matches(directory: &Arc<Mutex<Directory>>, regex: Regex) -> Vec<String> {
-    //println!("Scanning a dir {:?}", directory);
     let mut matches = vec![];
     let locked_directory = directory.lock().unwrap();
     if is_match(&locked_directory.path, &regex) {

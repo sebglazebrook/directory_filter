@@ -7,6 +7,7 @@ authors = ["Seb Glazebrook <sebastian.glazebrook@redbubble.com>"]
 regex = "*"
 crossbeam = "*"
 time = "*"
+log = "*"
 
 [dependencies.directory_scanner]
 git = "http://github.com/sebglazebrook/directory_scanner.git"

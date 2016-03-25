@@ -2,6 +2,7 @@ extern crate directory_scanner;
 extern crate regex;
 extern crate time;
 extern crate crossbeam;
+#[macro_use] extern crate log;
 
 mod directory_filter;
 pub use directory_filter::{ContinuousFilter,FilteredDirectory};
