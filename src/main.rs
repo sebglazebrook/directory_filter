@@ -6,7 +6,7 @@ use std::io;
 use directory_scanner::ScannerBuilder;
 use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
-use directory_filter::{ContinuousFilter, FilteredDirectory};
+use directory_filter::ContinuousFilter;
 
 fn main() {
     let(trans_new_directory_item, rec_new_directory_item) = channel();

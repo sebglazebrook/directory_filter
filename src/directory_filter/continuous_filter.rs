@@ -77,7 +77,7 @@ impl ContinuousFilter {
             scope.spawn(move || {
                 while !done.load(Ordering::Relaxed) {
                     match new_directory_item_receiver.lock().unwrap().recv() {
-                        Ok(directory) => {
+                        Ok(_) => {
                             let mut locked_filter = local_filter.lock().unwrap();
                             locked_filter.scan();
                         },
