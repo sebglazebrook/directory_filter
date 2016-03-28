@@ -8,6 +8,7 @@ regex = "*"
 crossbeam = "*"
 time = "*"
 log = "*"
+lazy_static = "*"
 
 [dependencies.directory_scanner]
 git = "http://github.com/sebglazebrook/directory_scanner.git"

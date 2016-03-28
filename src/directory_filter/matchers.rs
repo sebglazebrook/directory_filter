@@ -15,7 +15,7 @@ pub fn find_matches(directory: &Arc<Mutex<Directory>>, regex: Regex) -> Vec<Stri
 fn execute(directory: &Arc<Mutex<Directory>>, regex: Regex) -> Vec<String> {
     let matches_queue = Arc::new(SegQueue::new());
     let current_concurrency = Arc::new(AtomicUsize::new(0));
-    let concurrency_limit = Arc::new(AtomicUsize::new(8));
+    let concurrency_limit = Arc::new(AtomicUsize::new(4));
     fetch_matches(directory.clone(), regex.clone(), matches_queue.clone(), current_concurrency.clone(), concurrency_limit.clone());
     let mut merged_matches = vec![];
     let mut done = false;

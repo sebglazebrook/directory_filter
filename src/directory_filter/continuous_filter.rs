@@ -7,7 +7,7 @@ use std::sync::mpsc::channel;
 use directory_scanner::Directory;
 use crossbeam;
 
-use directory_filter::{FilteredDirectory, RegexBuilder};
+use directory_filter::{FilteredDirectory, RegexBuilder,FILTER_EVENT_BROKER};
 use directory_filter::matchers::*;
 
 pub struct ContinuousFilter {
@@ -19,14 +19,13 @@ pub struct ContinuousFilter {
 
 impl ContinuousFilter {
 
-    pub fn new(directory: Arc<Mutex<Directory>>, filter_change_receiver: Arc<Mutex<Receiver<String>>>,
-               new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>, filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory>>>) -> Self {
+    pub fn new(directory: Arc<Mutex<Directory>>, new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>,
+               filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory>>>) -> Self {
 
       let actual_filter = Arc::new(
           Mutex::new(
               Filter::new(
                 directory,
-                filter_change_receiver,
                 new_directory_item_receiver,
                 filter_match_transmitter
               )
@@ -46,11 +45,9 @@ impl ContinuousFilter {
 
         info!("filter scanning started");
         crossbeam::scope(|scope| {
-            let filter_change_receiver;
             let new_directory_item_receiver ;
             {
                 let locked_filter = self.actual_filter.lock().unwrap();
-                filter_change_receiver = locked_filter.filter_change_receiver.clone();
                 new_directory_item_receiver = locked_filter.new_directory_item_receiver.clone();
             }
 
@@ -59,14 +56,16 @@ impl ContinuousFilter {
             let done = self.done.clone();
             scope.spawn(move || {
                 while !done.load(Ordering::Relaxed) {
-                    match filter_change_receiver.lock().unwrap().recv() {
-                        Ok(filter_string) => {
+                    match FILTER_EVENT_BROKER.recv() {
+                        Ok(filter_string)  => {
                             info!("Found new filter string: {}", filter_string);
                             let mut locked_filter = local_filter.lock().unwrap();
                             locked_filter.regex = RegexBuilder::new(filter_string).build();
                             locked_filter.scan();
                         },
-                        Err(_) => {},
+                        Err(_) => {
+                            done.store(true, Ordering::Relaxed);
+                        }
                     }
                 }
             });
@@ -108,7 +107,6 @@ impl ContinuousFilter {
 
 struct Filter {
     directory: Arc<Mutex<Directory>>,
-    filter_change_receiver: Arc<Mutex<Receiver<String>>>,
     new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>,
     filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory>>>,
     results: FilteredDirectory,
@@ -117,8 +115,8 @@ struct Filter {
 
 impl Filter {
 
-    pub fn new(directory: Arc<Mutex<Directory>>, filter_change_receiver: Arc<Mutex<Receiver<String>>>,
-               new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>, filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory>>>) -> Self {
+    pub fn new(directory: Arc<Mutex<Directory>>, new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>,
+               filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory>>>) -> Self {
 
       let filtered_directory = FilteredDirectory {
            matches: vec![],
@@ -127,7 +125,6 @@ impl Filter {
 
       Filter {
           directory: directory.clone(),
-          filter_change_receiver: filter_change_receiver,
           new_directory_item_receiver: new_directory_item_receiver,
           filter_match_transmitter: filter_match_transmitter,
           results: filtered_directory,
