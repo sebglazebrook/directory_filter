@@ -7,7 +7,7 @@ use std::sync::mpsc::channel;
 use directory_scanner::Directory;
 use crossbeam;
 
-use directory_filter::{FilteredDirectory, RegexBuilder,FILTER_EVENT_BROKER};
+use directory_filter::{FilteredDirectory, RegexBuilder, FILTER_EVENT_BROKER};
 use directory_filter::matchers::*;
 
 pub struct ContinuousFilter {

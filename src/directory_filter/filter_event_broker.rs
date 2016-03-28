@@ -51,26 +51,28 @@ impl FilterEventBroker {
     }
 
     pub fn recv(&self) -> Result<String, &str>  {
+        let mut return_event = Err("I dont't know");
         match self.try_recv() {
-            Some(event) => { Ok(event) }
+            Some(event) => { return_event = Ok(event); }
             None => {
-                let mutex_guard = self.mutex.lock().unwrap();
-                let _ = self.condvar.wait(mutex_guard).unwrap();
-                if !self.receiving_events.load(Ordering::Relaxed) {
-                    return Err("no longer receiving events"); //TODO send a real error type
-                }
-                let mut event = self.events.pop();
-                let mut found_most_recent_event = false;
-                while !found_most_recent_event {
+                let mut done = false;
+                while !done {
+                    let mutex_guard = self.mutex.lock().unwrap();
+                    let _ = self.condvar.wait(mutex_guard).unwrap();
                     if !self.receiving_events.load(Ordering::Relaxed) {
+                        done = true;
+                        return Err("no longer receiving events"); //TODO send a real error type
                     }
-                    match self.events.try_pop() {
-                        Some(newer_event) => { event = newer_event; },
-                        None => { found_most_recent_event = true; }
+                    match self.try_recv() {
+                        Some(event) =>  {
+                            done = true;
+                            return_event = Ok(event);
+                        },
+                        None => {}
                     }
                 }
-                Ok(event) // TODO handle when there is an error
             }
         }
+        return_event
     }
 }
