@@ -27,10 +27,13 @@ impl<'a> FilteredDirectory<'a> {
     }
 
     pub fn run_filter(&mut self) {
-        // TODO don't find matches if regex is empty/match all
-        let new_matches = find_matches(&self.directory, self.regex.clone()); // TODO don't return matches update the FilteredDirectory??
-        self.matches = new_matches;
-        info!("Filter found {} matches", self.len());
+        if self.regex.to_string() == "" {
+            self.matches = self.directory.lock().unwrap().flatten();
+        } else {
+            let new_matches = find_matches(&self.directory, self.regex.clone()); // TODO don't return matches update the FilteredDirectory??
+            self.matches = new_matches;
+            info!("Filter found {} matches", self.len());
+        }
     }
 
     // TODO  implement trait std::iter::Iterator

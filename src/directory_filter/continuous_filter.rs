@@ -104,6 +104,7 @@ impl<'a> ContinuousFilter<'a>{
 
 }
 
+// TODO remove new_directory_item_receiver from her
 struct Filter<'a> {
     directory: Arc<Mutex<Directory>>,
     new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>,
