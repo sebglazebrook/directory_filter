@@ -8,19 +8,18 @@ use directory_scanner::Directory;
 use crossbeam;
 
 use directory_filter::{FilteredDirectory, RegexBuilder, FILTER_EVENT_BROKER};
-use directory_filter::matchers::*;
 
-pub struct ContinuousFilter {
-    actual_filter: Arc<Mutex<Filter>>,
+pub struct ContinuousFilter<'a> {
+    actual_filter: Arc<Mutex<Filter<'a>>>,
     done: Arc<AtomicBool>,
     pub finished_transmitter: Sender<bool>,
     finished_receiver: Receiver<bool>,
 }
 
-impl ContinuousFilter {
+impl<'a> ContinuousFilter<'a>{
 
     pub fn new(directory: Arc<Mutex<Directory>>, new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>,
-               filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory>>>) -> Self {
+               filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory<'a>>>>) -> Self {
 
       let actual_filter = Arc::new(
           Mutex::new(
@@ -41,7 +40,7 @@ impl ContinuousFilter {
       }
     }
 
-    pub fn start(&mut self) {
+    pub fn start(&mut self) { // TODO could this return a FilteredDirectory that gets updated?
 
         info!("filter scanning started");
         crossbeam::scope(|scope| {
@@ -105,30 +104,28 @@ impl ContinuousFilter {
 
 }
 
-struct Filter {
+struct Filter<'a> {
     directory: Arc<Mutex<Directory>>,
     new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>,
-    filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory>>>,
-    results: FilteredDirectory,
+    filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory<'a>>>>,
+    filtered_directory: FilteredDirectory<'a>,
     regex: Regex,
 }
 
-impl Filter {
+impl<'a> Filter<'a> {
 
     pub fn new(directory: Arc<Mutex<Directory>>, new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>,
-               filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory>>>) -> Self {
+               filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory<'a>>>>) -> Self {
 
-      let filtered_directory = FilteredDirectory {
-           matches: vec![],
-           directory: directory.clone(),
-      };
+      let initial_regex = Regex::new("").unwrap();
+      let filtered_directory = FilteredDirectory::new(directory.clone(), initial_regex.clone());
 
       Filter {
           directory: directory.clone(),
           new_directory_item_receiver: new_directory_item_receiver,
           filter_match_transmitter: filter_match_transmitter,
-          results: filtered_directory,
-          regex: Regex::new("").unwrap(),
+          filtered_directory: filtered_directory,
+          regex: initial_regex,
       }
     }
 
@@ -138,13 +135,12 @@ impl Filter {
 
     pub fn scan(&mut self) {
         info!("Filter is scanning through directory with");
-        self.results.directory = self.directory.clone();
-        let new_matches = find_matches(&self.directory, self.regex.clone());
-        info!("Filter found {} matches", new_matches.len());
-        if self.results.matches != new_matches {
+        let mut new_filtered_directory = FilteredDirectory::new(self.directory.clone(), self.regex.clone());
+        new_filtered_directory.run_filter();
+        if self.filtered_directory.matches != new_filtered_directory.matches {
             info!("Filter found matches to be different from previous emitting event");
-            self.results.matches = new_matches;
-            let _ = self.filter_match_transmitter.lock().unwrap().send(self.results.clone()); // TODO only send if there is a difference? or only send the delta?
+            self.filtered_directory = new_filtered_directory;
+            let _ = self.filter_match_transmitter.lock().unwrap().send(self.filtered_directory.clone());
         }
     }
 
