@@ -59,8 +59,7 @@ impl ContinuousFilter{
                         Ok(filter_string)  => {
                             info!("Found new filter string: {}", filter_string);
                             let mut locked_filter = local_filter.lock().unwrap();
-                            locked_filter.regex = RegexBuilder::new(filter_string).build();
-                            locked_filter.scan();
+                            locked_filter.rescan(RegexBuilder::new(filter_string).build());
                         },
                         Err(_) => {
                             done.store(true, Ordering::Relaxed);
@@ -134,12 +133,21 @@ impl Filter {
         info!("Filter is scanning through directory with");
         let mut new_filtered_directory = FilteredDirectory::new(self.directory.clone(), self.regex.clone());
         new_filtered_directory.run_filter();
-        //if self.filtered_directory.matches != new_filtered_directory.matches {
         if self.filtered_directory.file_matches != new_filtered_directory.file_matches {
             info!("Filter found matches to be different from previous emitting event");
             self.filtered_directory = new_filtered_directory;
             let _ = self.filter_match_transmitter.lock().unwrap().send(self.filtered_directory.clone());
         }
+    }
+
+    pub fn rescan(&mut self, new_regex: Regex)  {
+        info!("Filter is scanning through directory with");
+        self.regex = new_regex.clone();
+        self.filtered_directory.re_filter(new_regex);
+        //if self.filtered_directory.file_matches != new_filtered_directory.file_matches {
+            info!("Filter found matches to be different from previous emitting event");
+            let _ = self.filter_match_transmitter.lock().unwrap().send(self.filtered_directory.clone());
+        //}
     }
 
 }

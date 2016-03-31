@@ -10,6 +10,16 @@ pub fn find_matches(directory: &Arc<Mutex<Directory>>, regex: Regex) -> Vec<File
     execute(directory, regex)
 }
 
+pub fn find_file_matches(files: &Vec<File>, regex: Regex) -> Vec<File> {
+    let mut matches = vec![];
+    for file in files {
+        if is_string_match(file.as_string(), &regex) {
+            matches.push(file.clone());
+        }
+    }
+    matches
+}
+
 //----------- private -------------//
 
 fn execute(directory: &Arc<Mutex<Directory>>, regex: Regex) -> Vec<File> {
@@ -65,6 +75,10 @@ fn fetch_matches(directory: Arc<Mutex<Directory>>, regex: Regex, file_matches_qu
 
 fn is_match(path: &PathBuf, regex: &Regex) -> bool {
     regex.is_match(path.to_str().unwrap())
+}
+
+fn is_string_match(path: String, regex: &Regex) -> bool {
+    regex.is_match(&path)
 }
 
 fn max_concurrency_reached(current_concurrency: Arc<AtomicUsize>, concurrency_limit: Arc<AtomicUsize>) -> bool {
