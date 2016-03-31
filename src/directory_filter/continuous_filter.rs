@@ -9,17 +9,17 @@ use crossbeam;
 
 use directory_filter::{FilteredDirectory, RegexBuilder, FILTER_EVENT_BROKER};
 
-pub struct ContinuousFilter<'a> {
-    actual_filter: Arc<Mutex<Filter<'a>>>,
+pub struct ContinuousFilter {
+    actual_filter: Arc<Mutex<Filter>>,
     done: Arc<AtomicBool>,
     pub finished_transmitter: Sender<bool>,
     finished_receiver: Receiver<bool>,
 }
 
-impl<'a> ContinuousFilter<'a>{
+impl ContinuousFilter{
 
     pub fn new(directory: Arc<Mutex<Directory>>, new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>,
-               filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory<'a>>>>) -> Self {
+               filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory>>>) -> Self {
 
       let actual_filter = Arc::new(
           Mutex::new(
@@ -105,18 +105,18 @@ impl<'a> ContinuousFilter<'a>{
 }
 
 // TODO remove new_directory_item_receiver from her
-struct Filter<'a> {
+struct Filter {
     directory: Arc<Mutex<Directory>>,
     new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>,
-    filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory<'a>>>>,
-    filtered_directory: FilteredDirectory<'a>,
+    filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory>>>,
+    filtered_directory: FilteredDirectory,
     regex: Regex,
 }
 
-impl<'a> Filter<'a> {
+impl Filter {
 
     pub fn new(directory: Arc<Mutex<Directory>>, new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>,
-               filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory<'a>>>>) -> Self {
+               filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory>>>) -> Self {
 
       let initial_regex = Regex::new("").unwrap();
       let filtered_directory = FilteredDirectory::new(directory.clone(), initial_regex.clone());

@@ -4,20 +4,18 @@ use regex::Regex;
 use directory_filter::matchers::*;
 
 #[derive(Clone)]
-pub struct FilteredDirectory<'a> {
+pub struct FilteredDirectory {
     directory: Arc<Mutex<Directory>>,
     regex: Regex, // TODO gonna need to store the filterstring/regex here
-    pub match_references: Vec<&'a File>, // TODO make this actually work
     pub file_matches: Vec<File>,
 }
 
-impl<'a> FilteredDirectory<'a> {
+impl FilteredDirectory {
 
     pub fn new(directory: Arc<Mutex<Directory>>, regex: Regex) -> Self {
       FilteredDirectory {
            directory: directory,
            regex: regex,
-           match_references: vec![],
            file_matches: vec![],
       }
     }
