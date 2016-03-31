@@ -75,7 +75,10 @@ impl Iterator for FilteredDirectoryIntoIterator {
 
     fn next(&mut self) -> Option<File> {
         match self.filtered_directory.file_matches.get(self.index) {
-            Some(result) => Some(result.clone()),
+            Some(result) => {
+                self.index += 1;
+                Some(result.clone())
+            },
             None => None
         }
     }
