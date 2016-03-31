@@ -11,11 +11,12 @@ impl RegexBuilder {
     }
 
     pub fn build(&self) -> Regex {
-        let new_string = self.string.chars().fold(String::new(), |mut acc, character|{
-            acc.push(character);
+        let mut new_string = self.string.chars().fold(String::new(), |mut acc, character|{
             acc.push_str(".*");
+            acc.push(character);
             acc
         });
+        new_string.push_str(".*");
         Regex::new(&new_string).unwrap()
     }
 
