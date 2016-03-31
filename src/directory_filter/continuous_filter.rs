@@ -130,15 +130,12 @@ impl<'a> Filter<'a> {
       }
     }
 
-    pub fn append(&mut self, directory: Directory) {
-        self.directory.lock().unwrap().extend(&directory)
-    }
-
     pub fn scan(&mut self) {
         info!("Filter is scanning through directory with");
         let mut new_filtered_directory = FilteredDirectory::new(self.directory.clone(), self.regex.clone());
         new_filtered_directory.run_filter();
-        if self.filtered_directory.matches != new_filtered_directory.matches {
+        //if self.filtered_directory.matches != new_filtered_directory.matches {
+        if self.filtered_directory.file_matches != new_filtered_directory.file_matches {
             info!("Filter found matches to be different from previous emitting event");
             self.filtered_directory = new_filtered_directory;
             let _ = self.filter_match_transmitter.lock().unwrap().send(self.filtered_directory.clone());

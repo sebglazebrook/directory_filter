@@ -9,6 +9,7 @@ pub struct FilteredDirectory<'a> {
     pub matches: Vec<String>, // TODO this should be a collection of references/pointers to paths in the directory
     regex: Regex, // TODO gonna need to store the filterstring/regex here
     pub match_references: Vec<&'a File>, // TODO make this actually work
+    pub file_matches: Vec<File>,
 }
 
 impl<'a> FilteredDirectory<'a> {
@@ -19,6 +20,7 @@ impl<'a> FilteredDirectory<'a> {
            directory: directory,
            regex: regex,
            match_references: vec![],
+           file_matches: vec![],
       }
     }
 
@@ -29,9 +31,13 @@ impl<'a> FilteredDirectory<'a> {
     pub fn run_filter(&mut self) {
         if self.regex.to_string() == "" {
             self.matches = self.directory.lock().unwrap().flatten();
+            self.file_matches = self.directory.lock().unwrap().file_contents();
         } else {
-            let new_matches = find_matches(&self.directory, self.regex.clone()); // TODO don't return matches update the FilteredDirectory??
+            let results = find_matches(&self.directory, self.regex.clone()); // TODO don't return matches update the FilteredDirectory??
+            let new_matches = results.0;
+            let new_file_matches = results.1;
             self.matches = new_matches;
+            self.file_matches = new_file_matches;
             info!("Filter found {} matches", self.len());
         }
     }
