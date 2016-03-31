@@ -52,6 +52,31 @@ impl FilteredDirectory {
         new_regex.as_str().starts_with(self.regex.as_str())
     }
 
-    // TODO  implement trait std::iter::Iterator
     // TODO implement eq trait for this one
+}
+
+impl IntoIterator for FilteredDirectory {
+    type Item = File;
+    type IntoIter = FilteredDirectoryIntoIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        FilteredDirectoryIntoIterator { filtered_directory: self, index: 0 }
+    }
+
+}
+
+pub struct FilteredDirectoryIntoIterator  {
+    filtered_directory: FilteredDirectory,
+    index: usize,
+}
+
+impl Iterator for FilteredDirectoryIntoIterator {
+    type Item = File;
+
+    fn next(&mut self) -> Option<File> {
+        match self.filtered_directory.file_matches.get(self.index) {
+            Some(result) => Some(result.clone()),
+            None => None
+        }
+    }
 }

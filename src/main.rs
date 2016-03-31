@@ -31,8 +31,8 @@ fn main() {
         });
 
         let found = rec_filter_match.recv().unwrap();
-        println!("Found {} files", found.matches.len());
-        println!("example = {}", found.matches.first().unwrap());
+        println!("Found {} files", found.len());
+        println!("example = {:?}", found.file_matches.first().unwrap());
 
         let mut done = false;
         let mut input = String::new();
@@ -48,7 +48,7 @@ fn main() {
                         while keep_looking {
                             match rec_filter_match.try_recv() {
                                 Ok(found) => {
-                                    println!("matches = {}", found.matches.len());
+                                    println!("matches = {}", found.len());
                                     //println!("first = {:?}", found.matches);
                                 },
                                 Err(_) => { keep_looking = false }
