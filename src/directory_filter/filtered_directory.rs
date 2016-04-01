@@ -24,6 +24,10 @@ impl FilteredDirectory {
         self.file_matches.len()
     }
 
+    pub fn total_len(&self) -> usize {
+        self.directory.lock().unwrap().len()
+    }
+
     pub fn run_filter(&mut self) {
         if self.regex.to_string() == "" {
             self.file_matches = self.directory.lock().unwrap().file_contents();
