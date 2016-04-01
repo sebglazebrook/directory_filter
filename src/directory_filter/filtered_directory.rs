@@ -29,7 +29,9 @@ impl FilteredDirectory {
     }
 
     pub fn run_filter(&mut self) {
-        if self.regex.to_string() == "" {
+        info!("Running filter with {:?}", self.regex);
+        if self.regex.to_string() == "" || self.regex.to_string() == ".*" {
+            info!("Match all filter found, returning all files");
             self.file_matches = self.directory.lock().unwrap().file_contents();
         } else {
             self.file_matches = find_matches(&self.directory, self.regex.clone());
