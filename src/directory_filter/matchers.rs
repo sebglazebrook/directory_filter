@@ -45,11 +45,11 @@ fn execute(directory: &Arc<Mutex<Directory>>, regex: Regex) -> Vec<File> {
 
 fn fetch_matches(directory: Arc<Mutex<Directory>>, regex: Regex, file_matches_queue: Arc<SegQueue<Vec<File>>>, current_concurrency: Arc<AtomicUsize>, concurrency_limit: Arc<AtomicUsize>) {
     let locked_directory = directory.lock().unwrap();
-    if is_match(&locked_directory.path, &regex) {
+    if is_string_match(locked_directory.path.to_str().unwrap().to_string(), &regex) {
         file_matches_queue.push(locked_directory.files.clone());
     } else {
         for file in locked_directory.files.clone() {
-            if is_match(&file.path(), &regex) {
+            if is_string_match(file.as_string(), &regex) {
                 file_matches_queue.push(vec![file.clone()]);
             }
         }
@@ -71,10 +71,6 @@ fn fetch_matches(directory: Arc<Mutex<Directory>>, regex: Regex, file_matches_qu
             }
         }
     }
-}
-
-fn is_match(path: &PathBuf, regex: &Regex) -> bool {
-    regex.is_match(path.to_str().unwrap())
 }
 
 fn is_string_match(path: String, regex: &Regex) -> bool {
