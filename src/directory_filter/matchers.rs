@@ -12,6 +12,7 @@ pub fn find_matches(directory: &Arc<Mutex<Directory>>, regex: Regex) -> Vec<File
 
 pub fn find_file_matches(files: &Vec<File>, regex: Regex) -> Vec<File> {
     let mut matches = vec![];
+    // TODO Make this concurrent
     for file in files {
         if is_string_match(file.as_string(), &regex) {
             matches.push(file.clone());
