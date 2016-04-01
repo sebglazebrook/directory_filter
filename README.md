@@ -8,4 +8,4 @@ See the tests for usage for the time being.
 
 # TODO
 
-- Use a threadpool to speed up the filtering
+- keep track of matches using the same directory structure not just Vec<File>
