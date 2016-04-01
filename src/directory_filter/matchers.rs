@@ -5,20 +5,35 @@ use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 use crossbeam::sync::SegQueue;
+use scoped_threadpool::Pool;
 
 pub fn find_matches(directory: &Arc<Mutex<Directory>>, regex: Regex) -> Vec<File> {
     execute(directory, regex)
 }
 
 pub fn find_file_matches(files: &Vec<File>, regex: Regex) -> Vec<File> {
-    let mut matches = vec![];
-    // TODO Make this concurrent
-    for file in files {
-        if is_string_match(file.as_string(), &regex) {
-            matches.push(file.clone());
+    let file_matches_queue = Arc::new(SegQueue::new());
+    let mut pool = Pool::new(8);
+    pool.scoped(|scoped| {
+        for file in files {
+        let local_regex = regex.clone();
+        let local_file_matches_queue = file_matches_queue.clone();
+            scoped.execute(move || {
+                if is_string_match(file.as_string(), &local_regex) {
+                    local_file_matches_queue.push(file.clone());
+                }
+            });
+        }
+    });
+    let mut file_merged_matches = vec![];
+    let mut done = false;
+    while !done {
+        match file_matches_queue.try_pop() {
+            Some(matches) => { file_merged_matches.push(matches); }
+            None => { done = true }
         }
     }
-    matches
+    file_merged_matches
 }
 
 //----------- private -------------//

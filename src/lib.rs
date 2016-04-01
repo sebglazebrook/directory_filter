@@ -2,6 +2,7 @@ extern crate directory_scanner;
 extern crate regex;
 extern crate time;
 extern crate crossbeam;
+extern crate scoped_threadpool;
 #[macro_use] extern crate log;
 #[macro_use] extern crate lazy_static;
 
