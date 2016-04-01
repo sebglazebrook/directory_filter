@@ -130,7 +130,7 @@ impl Filter {
     }
 
     pub fn scan(&mut self) {
-        info!("Filter is scanning through directory with");
+        info!("Filter scanning");
         let mut new_filtered_directory = FilteredDirectory::new(self.directory.clone(), self.regex.clone());
         new_filtered_directory.run_filter();
         if self.filtered_directory.file_matches != new_filtered_directory.file_matches {
@@ -141,7 +141,7 @@ impl Filter {
     }
 
     pub fn rescan(&mut self, new_regex: Regex)  {
-        info!("Filter is scanning through directory with");
+        info!("Filter rescanning using new regex: {:?}", new_regex);
         self.regex = new_regex.clone();
         self.filtered_directory.re_filter(new_regex);
         //if self.filtered_directory.file_matches != new_filtered_directory.file_matches {
