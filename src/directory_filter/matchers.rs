@@ -61,17 +61,17 @@ fn execute(directory: &Arc<Mutex<Directory>>, regex: Regex) -> Vec<File> {
 
 fn fetch_matches(directory: Arc<Mutex<Directory>>, regex: Regex, file_matches_queue: Arc<SegQueue<Vec<File>>>, current_concurrency: Arc<AtomicUsize>, concurrency_limit: Arc<AtomicUsize>) {
     let locked_directory = directory.lock().unwrap();
-    if is_string_match(locked_directory.path.to_str().unwrap().to_string(), &regex) {
-        file_matches_queue.push(locked_directory.files.clone());
+    if is_string_match(locked_directory.path_string(), &regex) {
+        file_matches_queue.push(locked_directory.files());
     } else {
-        for file in locked_directory.files.clone() {
+        for file in locked_directory.each_file() {
             if is_string_match(file.as_string(), &regex) {
                 file_matches_queue.push(vec![file.clone()]);
             }
         }
-        for sub_directory in locked_directory.sub_directories.clone() {
+        for sub_directory in locked_directory.each_sub_directory() {
             if max_concurrency_reached(current_concurrency.clone(), concurrency_limit.clone()) {
-                fetch_matches(Arc::new(Mutex::new(sub_directory)), regex.clone(), file_matches_queue.clone(), current_concurrency.clone(), concurrency_limit.clone());
+                fetch_matches(Arc::new(Mutex::new(sub_directory.clone())), regex.clone(), file_matches_queue.clone(), current_concurrency.clone(), concurrency_limit.clone());
             } else {
                 let local_current_concurrency = current_concurrency.clone();
                 let local_concurrency_limit = concurrency_limit.clone();
@@ -80,7 +80,7 @@ fn fetch_matches(directory: Arc<Mutex<Directory>>, regex: Regex, file_matches_qu
                 thread::spawn(move || {
                     local_current_concurrency.fetch_add(1, Ordering::SeqCst);
                     info!("Increased filter concurrency to {:?}", local_current_concurrency.load(Ordering::Relaxed));
-                    fetch_matches(Arc::new(Mutex::new(sub_directory)), local_regex, local_file_matches_queue, local_current_concurrency.clone(), local_concurrency_limit);
+                    fetch_matches(Arc::new(Mutex::new(sub_directory.clone())), local_regex, local_file_matches_queue, local_current_concurrency.clone(), local_concurrency_limit);
                     local_current_concurrency.fetch_sub(1, Ordering::SeqCst);
                     info!("Decreased filter concurrency to {:?}", local_current_concurrency.load(Ordering::Relaxed));
                 });
