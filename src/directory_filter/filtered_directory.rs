@@ -1,18 +1,17 @@
 use directory_scanner::{Directory, File};
-use std::sync::{Arc, Mutex};
 use regex::Regex;
 use directory_filter::matchers::*;
 
 #[derive(Clone)]
 pub struct FilteredDirectory {
-    directory: Arc<Mutex<Directory>>,
+    directory: Directory,
     regex: Regex,
     pub file_matches: Vec<File>,
 }
 
 impl FilteredDirectory {
 
-    pub fn new(directory: Arc<Mutex<Directory>>, regex: Regex) -> Self {
+    pub fn new(directory: Directory, regex: Regex) -> Self {
       FilteredDirectory {
            directory: directory,
            regex: regex,
@@ -25,14 +24,14 @@ impl FilteredDirectory {
     }
 
     pub fn total_len(&self) -> usize {
-        self.directory.lock().unwrap().len()
+        self.directory.len()
     }
 
     pub fn run_filter(&mut self) {
         info!("Running filter with {:?}", self.regex);
         if self.regex.to_string() == "" || self.regex.to_string() == ".*" {
             info!("Match all filter found, returning all files");
-            self.file_matches = self.directory.lock().unwrap().file_contents();
+            self.file_matches = self.directory.file_contents();
         } else {
             self.file_matches = find_matches(&self.directory, self.regex.clone());
             info!("Filter found {} matches", self.len());

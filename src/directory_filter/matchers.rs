@@ -1,13 +1,12 @@
 use regex::Regex;
 use directory_scanner::{Directory, File};
-use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 use crossbeam::sync::SegQueue;
 use scoped_threadpool::Pool;
 
-pub fn find_matches(directory: &Arc<Mutex<Directory>>, regex: Regex) -> Vec<File> {
+pub fn find_matches(directory: &Directory, regex: Regex) -> Vec<File> {
     execute(directory, regex)
 }
 
@@ -38,7 +37,7 @@ pub fn find_file_matches(files: &Vec<File>, regex: Regex) -> Vec<File> {
 
 //----------- private -------------//
 
-fn execute(directory: &Arc<Mutex<Directory>>, regex: Regex) -> Vec<File> {
+fn execute(directory: &Directory, regex: Regex) -> Vec<File> {
     let file_matches_queue = Arc::new(SegQueue::new());
     let current_concurrency = Arc::new(AtomicUsize::new(0));
     let concurrency_limit = Arc::new(AtomicUsize::new(4));
@@ -59,19 +58,18 @@ fn execute(directory: &Arc<Mutex<Directory>>, regex: Regex) -> Vec<File> {
 }
 
 
-fn fetch_matches(directory: Arc<Mutex<Directory>>, regex: Regex, file_matches_queue: Arc<SegQueue<Vec<File>>>, current_concurrency: Arc<AtomicUsize>, concurrency_limit: Arc<AtomicUsize>) {
-    let locked_directory = directory.lock().unwrap();
-    if is_string_match(locked_directory.path_string(), &regex) {
-        file_matches_queue.push(locked_directory.files());
+fn fetch_matches(directory: Directory, regex: Regex, file_matches_queue: Arc<SegQueue<Vec<File>>>, current_concurrency: Arc<AtomicUsize>, concurrency_limit: Arc<AtomicUsize>) {
+    if is_string_match(directory.path_string(), &regex) {
+        file_matches_queue.push(directory.files());
     } else {
-        for file in locked_directory.each_file() {
+        for file in directory.each_file() {
             if is_string_match(file.as_string(), &regex) {
                 file_matches_queue.push(vec![file.clone()]);
             }
         }
-        for sub_directory in locked_directory.each_sub_directory() {
+        for sub_directory in directory.each_sub_directory() {
             if max_concurrency_reached(current_concurrency.clone(), concurrency_limit.clone()) {
-                fetch_matches(Arc::new(Mutex::new(sub_directory.clone())), regex.clone(), file_matches_queue.clone(), current_concurrency.clone(), concurrency_limit.clone());
+                fetch_matches(sub_directory.clone(), regex.clone(), file_matches_queue.clone(), current_concurrency.clone(), concurrency_limit.clone());
             } else {
                 let local_current_concurrency = current_concurrency.clone();
                 let local_concurrency_limit = concurrency_limit.clone();
@@ -80,7 +78,7 @@ fn fetch_matches(directory: Arc<Mutex<Directory>>, regex: Regex, file_matches_qu
                 thread::spawn(move || {
                     local_current_concurrency.fetch_add(1, Ordering::SeqCst);
                     info!("Increased filter concurrency to {:?}", local_current_concurrency.load(Ordering::Relaxed));
-                    fetch_matches(Arc::new(Mutex::new(sub_directory.clone())), local_regex, local_file_matches_queue, local_current_concurrency.clone(), local_concurrency_limit);
+                    fetch_matches(sub_directory.clone(), local_regex, local_file_matches_queue, local_current_concurrency.clone(), local_concurrency_limit);
                     local_current_concurrency.fetch_sub(1, Ordering::SeqCst);
                     info!("Decreased filter concurrency to {:?}", local_current_concurrency.load(Ordering::Relaxed));
                 });

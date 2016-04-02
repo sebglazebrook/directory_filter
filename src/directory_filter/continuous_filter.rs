@@ -18,7 +18,7 @@ pub struct ContinuousFilter {
 
 impl ContinuousFilter{
 
-    pub fn new(directory: Arc<Mutex<Directory>>, new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>,
+    pub fn new(directory: Directory, new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>,
                filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory>>>) -> Self {
 
       let actual_filter = Arc::new(
@@ -105,7 +105,7 @@ impl ContinuousFilter{
 
 // TODO remove new_directory_item_receiver from her
 struct Filter {
-    directory: Arc<Mutex<Directory>>,
+    directory: Directory,
     new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>,
     filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory>>>,
     filtered_directory: FilteredDirectory,
@@ -114,7 +114,7 @@ struct Filter {
 
 impl Filter {
 
-    pub fn new(directory: Arc<Mutex<Directory>>, new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>,
+    pub fn new(directory: Directory, new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>,
                filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory>>>) -> Self {
 
       let initial_regex = Regex::new("").unwrap();
