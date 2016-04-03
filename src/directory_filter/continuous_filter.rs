@@ -1,14 +1,12 @@
-use regex::Regex;
 use std::sync::{Arc, Mutex, Condvar};
 use std::sync::mpsc::{Sender, Receiver};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::channel;
 
-use directory_scanner::{Directory, DirectoryEventBroker};
+use regex::Regex;
 use crossbeam;
 use crossbeam::sync::MsQueue;
-
-
+use directory_scanner::{Directory, DirectoryEventBroker};
 use directory_filter::{FilteredDirectory, RegexBuilder, FILTER_EVENT_BROKER};
 
 #[derive(Clone)]
