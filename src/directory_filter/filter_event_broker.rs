@@ -1,5 +1,5 @@
 use std::sync::{Arc, Mutex};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering, AtomicUsize};
 use crossbeam::sync::MsQueue;
 use std::sync::Condvar;
 
@@ -15,6 +15,7 @@ pub struct FilterEventBroker {
     receiving_events: AtomicBool,
     mutex: Mutex<bool>,
     condvar: Condvar,
+    pending_events: AtomicUsize,
 }
 
 impl FilterEventBroker {
@@ -25,12 +26,14 @@ impl FilterEventBroker {
             receiving_events: AtomicBool::new(true),
             condvar: Condvar::new(),
             mutex: Mutex::new(false),
+            pending_events: AtomicUsize::new(0),
         }
     }
 
     pub fn send(&self, filter_event: String) {
         self.events.push(filter_event);
         self.condvar.notify_one();
+        self.pending_events.fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn close(&self) {
@@ -43,7 +46,10 @@ impl FilterEventBroker {
         let mut done = false;
         while !done {
             match self.events.try_pop() {
-                Some(event) => { return_value = Some(event); },
+                Some(event) => {
+                    return_value = Some(event);
+                    self.pending_events.fetch_sub(1, Ordering::Relaxed);
+                },
                 None  => { done = true; }
             }
         }
@@ -74,5 +80,9 @@ impl FilterEventBroker {
             }
         }
         return_event
+    }
+
+    pub fn has_pending_events(&self) -> bool {
+        self.pending_events.load(Ordering::Relaxed) > 0
     }
 }

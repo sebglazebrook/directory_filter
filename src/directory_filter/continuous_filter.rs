@@ -1,5 +1,5 @@
 use regex::Regex;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, Condvar};
 use std::sync::mpsc::{Sender, Receiver};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::channel;
@@ -9,11 +9,12 @@ use crossbeam;
 
 use directory_filter::{FilteredDirectory, RegexBuilder, FILTER_EVENT_BROKER};
 
+#[derive(Clone)]
 pub struct ContinuousFilter {
     actual_filter: Arc<Mutex<Filter>>,
     done: Arc<AtomicBool>,
-    pub finished_transmitter: Sender<bool>,
-    finished_receiver: Receiver<bool>,
+    pub finished_lock: Arc<Mutex<bool>>,
+    pub finished_condvar: Arc<Condvar>,
 }
 
 impl ContinuousFilter{
@@ -31,16 +32,17 @@ impl ContinuousFilter{
           )
       );
 
-      let (tx, rx) = channel();
+      let finished_lock = Arc::new(Mutex::new(false));
+      let finished_condvar = Arc::new(Condvar::new());
       ContinuousFilter {
           actual_filter: actual_filter,
           done: Arc::new(AtomicBool::new(false)),
-          finished_transmitter: tx,
-          finished_receiver: rx,
+          finished_lock: finished_lock,
+          finished_condvar: finished_condvar,
       }
     }
 
-    pub fn start(&mut self) { // TODO could this return a FilteredDirectory that gets updated?
+    pub fn start(&self) { // TODO could this return a FilteredDirectory that gets updated?
 
         info!("filter scanning started");
         crossbeam::scope(|scope| {
@@ -93,12 +95,23 @@ impl ContinuousFilter{
         });
     }
 
+    pub fn is_processing(&self) -> bool {
+        FILTER_EVENT_BROKER.has_pending_events() || self.scanning_in_progress()
+    }
+
 
     //------------ private ----------//
 
     fn wait_until_finished(&self) {
-        self.finished_receiver.recv().unwrap();
+        let mut finished = self.finished_lock.lock().unwrap();
+        while !*finished {
+            finished = self.finished_condvar.wait(finished).unwrap();
+        }
         self.done.store(true, Ordering::Relaxed);
+    }
+
+    fn scanning_in_progress(&self) -> bool {
+       self.actual_filter.lock().unwrap().filtering_in_progress.load(Ordering::Relaxed)
     }
 
 }
@@ -110,6 +123,7 @@ struct Filter {
     filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory>>>,
     filtered_directory: FilteredDirectory,
     regex: Regex,
+    pub filtering_in_progress: AtomicBool, // TODO make this private
 }
 
 impl Filter {
@@ -126,10 +140,12 @@ impl Filter {
           filter_match_transmitter: filter_match_transmitter,
           filtered_directory: filtered_directory,
           regex: initial_regex,
+          filtering_in_progress: AtomicBool::new(false),
       }
     }
 
     pub fn scan(&mut self) {
+        self.filtering_in_progress.store(true, Ordering::Relaxed);
         info!("Filter scanning");
         let mut new_filtered_directory = FilteredDirectory::new(self.directory.clone(), self.regex.clone());
         new_filtered_directory.run_filter();
@@ -138,9 +154,11 @@ impl Filter {
             self.filtered_directory = new_filtered_directory;
             let _ = self.filter_match_transmitter.lock().unwrap().send(self.filtered_directory.clone());
         }
+        self.filtering_in_progress.store(false, Ordering::Relaxed);
     }
 
     pub fn rescan(&mut self, new_regex: Regex)  {
+        self.filtering_in_progress.store(true, Ordering::Relaxed);
         info!("Filter rescanning using new regex: {:?}", new_regex);
         self.regex = new_regex.clone();
         self.filtered_directory.re_filter(new_regex);
@@ -148,6 +166,7 @@ impl Filter {
             info!("Filter found matches to be different from previous emitting event");
             let _ = self.filter_match_transmitter.lock().unwrap().send(self.filtered_directory.clone());
         //}
+        self.filtering_in_progress.store(false, Ordering::Relaxed);
     }
 
 }

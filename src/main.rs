@@ -17,7 +17,6 @@ fn main() {
     //scanner_builder = scanner_builder.max_threads(8);
     scanner_builder = scanner_builder.update_subscriber(Arc::new(Mutex::new(trans_new_directory_item)));
     let directory = scanner_builder.build().scan();
-    let directory = Arc::new(Mutex::new(directory));
 
     let(trans_filter_match, rec_filter_match) = channel();
 
@@ -25,7 +24,6 @@ fn main() {
 
     crossbeam::scope(|scope| {
 
-        let finished_transmitter = filter.finished_transmitter.clone();
         scope.spawn(move || {
             filter.start();
         });
@@ -59,11 +57,10 @@ fn main() {
                 Err(error) => { println!("error: {}", error); }
             }
         }
-        println!("total files in directory: {}", directory.lock().unwrap().len());
-        println!("Finished");
+        //println!("total files in directory: {}", directory.len());
+        //println!("Finished");
 
         FILTER_EVENT_BROKER.close();
-        let _ = finished_transmitter.send(true);
         drop(scanner_builder);
     });
 }
