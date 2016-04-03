@@ -1,11 +1,9 @@
 use std::sync::{Arc, Mutex, Condvar};
-use std::sync::mpsc::{Sender, Receiver};
+use std::sync::mpsc::Sender;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::channel;
 
 use regex::Regex;
 use crossbeam;
-use crossbeam::sync::MsQueue;
 use directory_scanner::{Directory, DirectoryEventBroker};
 use directory_filter::{FilteredDirectory, RegexBuilder, FILTER_EVENT_BROKER};
 
@@ -15,13 +13,12 @@ pub struct ContinuousFilter {
     done: Arc<AtomicBool>,
     pub finished_lock: Arc<Mutex<bool>>,
     pub finished_condvar: Arc<Condvar>,
-    new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>,
     new_directory_item_event_broker: DirectoryEventBroker,
 }
 
 impl ContinuousFilter{
 
-    pub fn new(directory: Directory, new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>,
+    pub fn new(directory: Directory,
                filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory>>>, new_directory_item_event_broker: DirectoryEventBroker) -> Self {
 
       let actual_filter = Arc::new(Mutex::new(Filter::new(directory, filter_match_transmitter)));
@@ -34,7 +31,6 @@ impl ContinuousFilter{
           done: Arc::new(AtomicBool::new(false)),
           finished_lock: finished_lock,
           finished_condvar: finished_condvar,
-          new_directory_item_receiver: new_directory_item_receiver,
           new_directory_item_event_broker: new_directory_item_event_broker,
       }
     }
