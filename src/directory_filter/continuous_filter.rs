@@ -4,8 +4,10 @@ use std::sync::mpsc::{Sender, Receiver};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::channel;
 
-use directory_scanner::Directory;
+use directory_scanner::{Directory, DirectoryEventBroker};
 use crossbeam;
+use crossbeam::sync::MsQueue;
+
 
 use directory_filter::{FilteredDirectory, RegexBuilder, FILTER_EVENT_BROKER};
 
@@ -15,30 +17,27 @@ pub struct ContinuousFilter {
     done: Arc<AtomicBool>,
     pub finished_lock: Arc<Mutex<bool>>,
     pub finished_condvar: Arc<Condvar>,
+    new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>,
+    new_directory_item_event_broker: DirectoryEventBroker,
 }
 
 impl ContinuousFilter{
 
     pub fn new(directory: Directory, new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>,
-               filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory>>>) -> Self {
+               filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory>>>, new_directory_item_event_broker: DirectoryEventBroker) -> Self {
 
-      let actual_filter = Arc::new(
-          Mutex::new(
-              Filter::new(
-                directory,
-                new_directory_item_receiver,
-                filter_match_transmitter
-              )
-          )
-      );
+      let actual_filter = Arc::new(Mutex::new(Filter::new(directory, filter_match_transmitter)));
 
       let finished_lock = Arc::new(Mutex::new(false));
       let finished_condvar = Arc::new(Condvar::new());
+
       ContinuousFilter {
           actual_filter: actual_filter,
           done: Arc::new(AtomicBool::new(false)),
           finished_lock: finished_lock,
           finished_condvar: finished_condvar,
+          new_directory_item_receiver: new_directory_item_receiver,
+          new_directory_item_event_broker: new_directory_item_event_broker,
       }
     }
 
@@ -46,11 +45,6 @@ impl ContinuousFilter{
 
         info!("filter scanning started");
         crossbeam::scope(|scope| {
-            let new_directory_item_receiver ;
-            {
-                let locked_filter = self.actual_filter.lock().unwrap();
-                new_directory_item_receiver = locked_filter.new_directory_item_receiver.clone();
-            }
 
             // listen for filter change events and then kick off scan
             let local_filter = self.actual_filter.clone();
@@ -75,12 +69,12 @@ impl ContinuousFilter{
             let done = self.done.clone();
             scope.spawn(move || {
                 while !done.load(Ordering::Relaxed) {
-                    match new_directory_item_receiver.lock().unwrap().recv() {
+                    match self.new_directory_item_event_broker.recv() {
                         Ok(_) => {
                             let mut locked_filter = local_filter.lock().unwrap();
                             locked_filter.scan();
                         },
-                        Err(_) => {}
+                        Err(_) => {} // TODO handle this nicer?
                     }
                 }
             });
@@ -116,10 +110,8 @@ impl ContinuousFilter{
 
 }
 
-// TODO remove new_directory_item_receiver from her
 struct Filter {
     directory: Directory,
-    new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>,
     filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory>>>,
     filtered_directory: FilteredDirectory,
     regex: Regex,
@@ -128,15 +120,13 @@ struct Filter {
 
 impl Filter {
 
-    pub fn new(directory: Directory, new_directory_item_receiver: Arc<Mutex<Receiver<Directory>>>,
-               filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory>>>) -> Self {
+    pub fn new(directory: Directory, filter_match_transmitter: Arc<Mutex<Sender<FilteredDirectory>>>) -> Self {
 
       let initial_regex = Regex::new("").unwrap();
       let filtered_directory = FilteredDirectory::new(directory.clone(), initial_regex.clone());
 
       Filter {
           directory: directory.clone(),
-          new_directory_item_receiver: new_directory_item_receiver,
           filter_match_transmitter: filter_match_transmitter,
           filtered_directory: filtered_directory,
           regex: initial_regex,
