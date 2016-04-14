@@ -6,13 +6,13 @@ use std::thread;
 use crossbeam::sync::SegQueue;
 use scoped_threadpool::Pool;
 
-pub fn find_matches(directory: &Directory, regex: Regex) -> Vec<File> {
+pub fn find_matches(directory: &Directory, regex: Regex) -> Vec<File> { // TODO this takes an event broker
     execute(directory, regex)
 }
 
 pub fn find_file_matches(files: &Vec<File>, regex: Regex) -> Vec<File> {
     let file_matches_queue = Arc::new(SegQueue::new());
-    let mut pool = Pool::new(8);
+    let mut pool = Pool::new(8); // TODO allow this to be variable
     pool.scoped(|scoped| {
         for file in files {
         let local_regex = regex.clone();

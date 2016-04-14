@@ -8,4 +8,4 @@ extern crate scoped_threadpool;
 
 mod directory_filter;
 pub use directory_filter::{ContinuousFilter,FilteredDirectory, FILTER_EVENT_BROKER};
-pub use directory_scanner::{ScannerBuilder, Directory, File};
+pub use directory_scanner::{ScannerBuilder, Directory, File, DirectoryScanner};

@@ -131,8 +131,10 @@ impl Filter {
     pub fn scan(&mut self) {
         self.filtering_in_progress.store(true, Ordering::Relaxed);
         info!("Filter scanning");
-        let mut new_filtered_directory = FilteredDirectory::new(self.directory.clone(), self.regex.clone());
+        let mut new_filtered_directory = FilteredDirectory::new(self.directory.clone(), self.regex.clone()); // TODO send through an event broker here
         new_filtered_directory.run_filter();
+        // TODO here we can listen for new events from the event broker and merge them to the
+        // filtered directory
         if self.filtered_directory.file_matches != new_filtered_directory.file_matches {
             info!("Filter found matches to be different from previous emitting event");
             self.filtered_directory = new_filtered_directory;
@@ -145,11 +147,9 @@ impl Filter {
         self.filtering_in_progress.store(true, Ordering::Relaxed);
         info!("Filter rescanning using new regex: {:?}", new_regex);
         self.regex = new_regex.clone();
-        self.filtered_directory.re_filter(new_regex);
-        //if self.filtered_directory.file_matches != new_filtered_directory.file_matches {
-            info!("Filter found matches to be different from previous emitting event");
-            let _ = self.filter_match_transmitter.lock().unwrap().send(self.filtered_directory.clone());
-        //}
+        self.filtered_directory.re_filter(new_regex); // TODO this would also have to list for matches
+        info!("Filter found matches to be different from previous emitting event");
+        let _ = self.filter_match_transmitter.lock().unwrap().send(self.filtered_directory.clone());
         self.filtering_in_progress.store(false, Ordering::Relaxed);
     }
 
